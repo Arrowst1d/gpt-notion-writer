@@ -11,7 +11,7 @@ app.use(bodyParser.json());
 const notion = new Client({ auth: process.env.NOTION_SECRET });
 
 app.post("/write-to-notion", async (req, res) => {
-  const { title, content } = req.body;
+  const { title, content, subject, date } = req.body;
 
   try {
     const response = await notion.pages.create({
@@ -27,7 +27,21 @@ app.post("/write-to-notion", async (req, res) => {
               }
             }
           ]
-        }
+        },
+        Subject: subject
+          ? {
+              select: {
+                name: subject
+              }
+            }
+          : undefined,
+        Date: date
+          ? {
+              date: {
+                start: date
+              }
+            }
+          : undefined
       },
       children: [
         {
@@ -54,9 +68,6 @@ app.post("/write-to-notion", async (req, res) => {
   }
 });
 
-app.get("/", (req, res) => {
-  res.send("Your GPT-to-Notion robot is alive ✨");
-});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => {
