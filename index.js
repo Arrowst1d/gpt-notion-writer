@@ -13,7 +13,7 @@ const notion = new Client({ auth: process.env.NOTION_SECRET });
 app.post("/write-to-notion", async (req, res) => {
   const payload = req.body;
 
-  // If this is a bulk request
+  // Bulk task creation
   if (Array.isArray(payload.tasks)) {
     const results = [];
     for (const task of payload.tasks) {
@@ -34,9 +34,9 @@ app.post("/write-to-notion", async (req, res) => {
             },
             Subject: task.Subject
               ? {
-                  select: {
-                    name: task.Subject
-                  }
+                  multi_select: task.Subject.split(",").map((item) => ({
+                    name: item.trim()
+                  }))
                 }
               : undefined,
             Date: task.Date
@@ -74,7 +74,7 @@ app.post("/write-to-notion", async (req, res) => {
     return res.json({ success: true, pages: results });
   }
 
-  // Otherwise, treat it as a single task
+  // Single task creation
   const { title, content, Subject, Date } = payload;
 
   try {
@@ -92,13 +92,13 @@ app.post("/write-to-notion", async (req, res) => {
             }
           ]
         },
-        Subject: subject
-  ? {
-      multi_select: subject.split(",").map((item) => ({
-        name: item.trim()
-      }))
-    }
-  : undefined,
+        Subject: Subject
+          ? {
+              multi_select: Subject.split(",").map((item) => ({
+                name: item.trim()
+              }))
+            }
+          : undefined,
         Date: Date
           ? {
               date: {
@@ -133,7 +133,6 @@ app.post("/write-to-notion", async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
-
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => {
