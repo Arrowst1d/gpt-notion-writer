@@ -11,84 +11,129 @@ app.use(bodyParser.json());
 const notion = new Client({ auth: process.env.NOTION_SECRET });
 
 app.post("/write-to-notion", async (req, res) => {
-  let tasks = [];
+  const payload = req.body;
 
-  // Support both single and multiple task formats
-  if (Array.isArray(req.body.tasks)) {
-    tasks = req.body.tasks;
-  } else if (req.body.title && req.body.content) {
-    tasks = [req.body];
-  } else {
-    return res.status(400).json({ success: false, error: "Invalid task format." });
+  // If this is a bulk request
+  if (Array.isArray(payload.tasks)) {
+    const results = [];
+    for (const task of payload.tasks) {
+      try {
+        const response = await notion.pages.create({
+          parent: {
+            database_id: process.env.NOTION_DATABASE_ID
+          },
+          properties: {
+            Name: {
+              title: [
+                {
+                  text: {
+                    content: task.title
+                  }
+                }
+              ]
+            },
+            Subject: task.Subject
+              ? {
+                  select: {
+                    name: task.Subject
+                  }
+                }
+              : undefined,
+            Date: task.Date
+              ? {
+                  date: {
+                    start: task.Date
+                  }
+                }
+              : undefined
+          },
+          children: task.content
+            ? [
+                {
+                  object: "block",
+                  type: "paragraph",
+                  paragraph: {
+                    rich_text: [
+                      {
+                        type: "text",
+                        text: {
+                          content: task.content
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            : []
+        });
+        results.push(response.id);
+      } catch (error) {
+        console.error("Error writing task:", task.title, error.message);
+      }
+    }
+    return res.json({ success: true, pages: results });
   }
 
-  const createdPages = [];
+  // Otherwise, treat it as a single task
+  const { title, content, Subject, Date } = payload;
 
-  for (const task of tasks) {
-    const title = task.title;
-    const content = task.content;
-    const subject = task.Subject || task.subject || "General";
-    const dateInput = task.Date || task.date;
-    const formattedDate = dateInput ? new Date(dateInput).toISOString().split("T")[0] : undefined;
-
-    try {
-      const response = await notion.pages.create({
-        parent: {
-          database_id: process.env.NOTION_DATABASE_ID
-        },
-        properties: {
-          Name: {
-            title: [
-              {
-                text: {
-                  content: title
-                }
-              }
-            ]
-          },
-          Subject: subject
-            ? {
-                multi_select: Array.isArray(subject)
-                  ? subject.map(name => ({ name }))
-                  : [{ name: subject }]
-              }
-            : undefined,
-          Date: formattedDate
-            ? {
-                date: {
-                  start: formattedDate
-                }
-              }
-            : undefined
-        },
-   children: content
-  ? [
-      {
-        object: "block",
-        type: "paragraph",
-        paragraph: {
-          rich_text: [
+  try {
+    const response = await notion.pages.create({
+      parent: {
+        database_id: process.env.NOTION_DATABASE_ID
+      },
+      properties: {
+        Name: {
+          title: [
             {
-              type: "text",
               text: {
-                content: content
+                content: title
               }
             }
           ]
-        }
-      }
-    ]
-  : []
-      });
+        },
+        Subject: Subject
+          ? {
+              select: {
+                name: Subject
+              }
+            }
+          : undefined,
+        Date: Date
+          ? {
+              date: {
+                start: Date
+              }
+            }
+          : undefined
+      },
+      children: content
+        ? [
+            {
+              object: "block",
+              type: "paragraph",
+              paragraph: {
+                rich_text: [
+                  {
+                    type: "text",
+                    text: {
+                      content: content
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        : []
+    });
 
-      createdPages.push(response.id);
-    } catch (error) {
-      console.error("Error creating task:", title, error.message);
-    }
+    res.json({ success: true, pageId: response.id });
+  } catch (error) {
+    console.error("Error writing to Notion:", error.message);
+    res.status(500).json({ success: false, error: error.message });
   }
-
-  res.json({ success: true, pages: createdPages });
 });
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => {
