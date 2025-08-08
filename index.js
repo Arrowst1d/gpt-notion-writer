@@ -13,59 +13,61 @@ const notion = new Client({ auth: process.env.NOTION_SECRET });
 app.post("/write-to-notion", async (req, res) => {
   const { title, content, subject, date } = req.body;
 
-  try {
-    const response = await notion.pages.create({
-      parent: {
-        database_id: process.env.NOTION_DATABASE_ID
+const formattedDate = date ? new Date(date).toISOString().split("T")[0] : undefined;
+
+try {
+  const response = await notion.pages.create({
+    parent: {
+      database_id: process.env.NOTION_DATABASE_ID
+    },
+    properties: {
+      Name: {
+        title: [
+          {
+            text: {
+              content: title
+            }
+          }
+        ]
       },
-      properties: {
-        Name: {
-          title: [
+      Subject: subject
+        ? {
+            multi_select: Array.isArray(subject)
+              ? subject.map(name => ({ name }))
+              : [{ name: subject }]
+          }
+        : undefined,
+      Date: formattedDate
+        ? {
+            date: {
+              start: formattedDate
+            }
+          }
+        : undefined
+    },
+    children: [
+      {
+        object: "block",
+        type: "paragraph",
+        paragraph: {
+          rich_text: [
             {
+              type: "text",
               text: {
-                content: title
+                content: content
               }
             }
           ]
-        },
-        Subject: subject
-          ? {
-              select: {
-                name: subject
-              }
-            }
-          : undefined,
-        Date: date
-          ? {
-              date: {
-                start: date
-              }
-            }
-          : undefined
-      },
-      children: [
-        {
-          object: "block",
-          type: "paragraph",
-          paragraph: {
-            rich_text: [
-              {
-                type: "text",
-                text: {
-                  content: content
-                }
-              }
-            ]
-          }
         }
-      ]
-    });
+      }
+    ]
+  });
 
-    res.json({ success: true, pageId: response.id });
-  } catch (error) {
-    console.error("Error writing to Notion:", error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
+  res.json({ success: true, pageId: response.id });
+} catch (error) {
+  console.error("Error writing to Notion:", error.message);
+  res.status(500).json({ success: false, error: error.message });
+}
 });
 
 
