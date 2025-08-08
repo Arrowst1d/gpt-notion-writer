@@ -11,7 +11,11 @@ app.use(bodyParser.json());
 const notion = new Client({ auth: process.env.NOTION_SECRET });
 
 app.post("/write-to-notion", async (req, res) => {
-  const { title, content, subject, date } = req.body;
+const title = req.body.title;
+const content = req.body.content;
+const subject = req.body.Subject || req.body.subject;
+const date = req.body.Date || req.body.date;
+
 
 const formattedDate = date ? new Date(date).toISOString().split("T")[0] : undefined;
 
