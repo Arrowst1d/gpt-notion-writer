@@ -61,22 +61,24 @@ app.post("/write-to-notion", async (req, res) => {
               }
             : undefined
         },
-        children: [
-          {
-            object: "block",
-            type: "paragraph",
-            paragraph: {
-              rich_text: [
-                {
-                  type: "text",
-                  text: {
-                    content: content
-                  }
-                }
-              ]
+   children: content
+  ? [
+      {
+        object: "block",
+        type: "paragraph",
+        paragraph: {
+          rich_text: [
+            {
+              type: "text",
+              text: {
+                content: content
+              }
             }
-          }
-        ]
+          ]
+        }
+      }
+    ]
+  : []
       });
 
       createdPages.push(response.id);
