@@ -92,13 +92,13 @@ app.post("/write-to-notion", async (req, res) => {
             }
           ]
         },
-        Subject: Subject
-          ? {
-              select: {
-                name: Subject
-              }
-            }
-          : undefined,
+        Subject: subject
+  ? {
+      multi_select: subject.split(",").map((item) => ({
+        name: item.trim()
+      }))
+    }
+  : undefined,
         Date: Date
           ? {
               date: {
